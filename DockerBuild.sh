@@ -16,7 +16,7 @@ docker ps;
 docker ps|awk '{if (NR!=1) print $1}'| xargs docker stop;
 
 # Remove
-echo "Remove Docker Image";
+echo "Remove Docker Containers";
 docker ps -a -q;
 docker rm $(docker ps -a -q);
 
@@ -30,7 +30,7 @@ echo "Build Docker Image: ${combinedVersion}";
 docker build -t ${combinedVersion} . -f ./Dockerfile;
 
 # Run
-echo "Run Docker";
+echo "Running Docker ...";
 docker run -d -p ${outerVisitPort}:${innerVisitPort} ${combinedVersion};
 
 # Notification
