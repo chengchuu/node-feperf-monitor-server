@@ -29,7 +29,7 @@ class GetTopics extends Subscription {
     // 现存 topics
     const topicsData = await this.ctx.model.PerfTopics.findAll(query);
     const existTopics = topicsData.map(v => v.topic);
-    console.log('GetTopics existTopics', existTopics)
+    // console.log('GetTopics existTopics', existTopics)
     // 缓存 topics
     const cacheTopicsData = this.ctx.app.topicsCache || [];
     // console.log('GetTopics cacheTopics', cacheTopicsData)

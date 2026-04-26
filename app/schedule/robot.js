@@ -15,7 +15,7 @@ class Robot extends Subscription {
   async subscribe() {
     // 获取 topics
     const topics = (await this.ctx.service.perf.getTopic()).map(v => v.topic);
-    console.log('topics', topics);
+    // console.log('topics', topics);
     // topics.reduce(async (last, topic) => {
     //   await last;
     //   return axios
