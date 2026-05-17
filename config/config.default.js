@@ -18,12 +18,6 @@ module.exports = appInfo => {
     },
   };
 
-  config.cors = {
-    origin: '*',
-    allowMethods: 'GET,HEAD,PUT,POST,DELETE,PATCH,OPTIONS',
-    credentials: true,
-  };
-
   // use for cookie sign key, should change to your own and keep security
   config.keys = appInfo.name + '_1599042231246_4485';
 
@@ -31,9 +25,7 @@ module.exports = appInfo => {
   config.middleware = [];
 
   // add your user config here
-  const userConfig = {
-    // myAppName: 'egg',
-  };
+  const userConfig = {};
 
   return {
     ...config,
