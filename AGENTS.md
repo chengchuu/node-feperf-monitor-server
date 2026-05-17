@@ -49,9 +49,9 @@ Main Egg application code.
 Egg configuration and plugin enablement.
 
 - `config/plugin.js`
-  Enables `cors`, `redis`, `sequelize`, and `validate`.
+  Enables `redis`, `sequelize`, and `validate`. `egg-cors` is currently disabled/removed; if you want to keep an explicit marker, Egg.js 2.x also supports `cors: { enable: false, package: 'egg-cors' }`.
 - `config/config.default.js`
-  Base config: disables CSRF and enables permissive CORS.
+  Base config: disables CSRF. There is currently no active `config.cors` block.
 - `config/config.local.js`
   Local MySQL connection settings.
 - `config/_config.prod.js`

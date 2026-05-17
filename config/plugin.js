@@ -2,12 +2,8 @@
 
 /** @type Egg.EggPlugin */
 module.exports = {
-  // had enabled by egg
-  // static: {
-  //   enable: true,
-  // }
   cors: {
-    enable: true,
+    enable: false,
     package: 'egg-cors',
   },
   redis: {
