@@ -1,21 +1,21 @@
-'use strict';
+"use strict";
 
 /** @type Egg.EggPlugin */
 module.exports = {
   cors: {
     enable: false,
-    package: 'egg-cors',
+    package: "egg-cors",
   },
   redis: {
     enable: true,
-    package: 'egg-redis',
+    package: "egg-redis",
   },
   sequelize: {
     enable: true,
-    package: 'egg-sequelize',
+    package: "egg-sequelize",
   },
   validate: {
     enable: true,
-    package: 'egg-validate',
+    package: "egg-validate",
   },
 };

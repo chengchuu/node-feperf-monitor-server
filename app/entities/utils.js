@@ -1,4 +1,4 @@
-'use strict';
+"use strict";
 
 // 检查手机格式
 function checkPhone(phone) {

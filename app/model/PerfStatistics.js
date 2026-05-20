@@ -1,9 +1,9 @@
-'use strict';
+"use strict";
 
 module.exports = app => {
   const { INTEGER, FLOAT, STRING } = app.Sequelize;
 
-  const PerfStatistics = app.model.define('PerfStatistics', {
+  const PerfStatistics = app.model.define("PerfStatistics", {
     ss_id: {
       type: INTEGER,
       primaryKey: true,
@@ -46,8 +46,8 @@ module.exports = app => {
       type: INTEGER, // 1 可用 0 过期
     },
   }, {
-    tableName: 'perf_statistics',
-    createdAt: 'created_at',
+    tableName: "perf_statistics",
+    createdAt: "created_at",
     updatedAt: false,
   });
 

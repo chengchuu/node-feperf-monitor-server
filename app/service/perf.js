@@ -1,12 +1,12 @@
-'use strict';
+"use strict";
 
-const Service = require('egg').Service;
-const { format, addDays } = require('date-fns');
-const { err } = require('../entities/err');
-const { rsp } = require('../entities/response/index');
+const Service = require("egg").Service;
+const { format, addDays } = require("date-fns");
+const { err } = require("../entities/err");
+const { rsp } = require("../entities/response/index");
 
 class PerfService extends Service {
-  async addTopic({ topic, project_name, project_description, owner, department, contact, userName = '' } = {}) {
+  async addTopic({ topic, project_name, project_description, owner, department, contact, userName = "" } = {}) {
     const { ctx } = this;
 
     const exist = await ctx.model.PerfTopics.findOne({
@@ -17,7 +17,7 @@ class PerfService extends Service {
 
     if (exist) {
       return err({
-        info: 'err_topic_existed',
+        info: "err_topic_existed",
       });
     }
 
@@ -34,7 +34,7 @@ class PerfService extends Service {
     return rsp({ data: { rRes } });
   }
 
-  async getTopic({ userName = '' } = {}) {
+  async getTopic({ userName = "" } = {}) {
     const { ctx } = this;
     const where = {
       switch: 1,
@@ -43,10 +43,10 @@ class PerfService extends Service {
       Object.assign(where, { user_name: userName });
     }
     return ctx.model.PerfTopics.findAll({
-      attributes: [ 'topic_id', 'topic', 'project_name' ],
+      attributes: [ "topic_id", "topic", "project_name" ],
       where,
       order: [
-        [ 'topic_id' ],
+        [ "topic_id" ],
       ],
     });
   }
@@ -104,7 +104,7 @@ class PerfService extends Service {
       },
       limit: Number(limit),
       order: [
-        [ 'created_at', 'DESC' ],
+        [ "created_at", "DESC" ],
       ],
     });
   }
@@ -152,11 +152,11 @@ class PerfService extends Service {
 
   async mGetPerf({ topic, dreamDay }) {
     const d = new Date(dreamDay);
-    const reportDay = format(d, 'yyyy-MM-dd'); // `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
-    const reportHour = format(d, 'HH'); // `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
-    const startDay = format(new Date(dreamDay), 'yyyy-MM-dd 00:00:00');
+    const reportDay = format(d, "yyyy-MM-dd"); // `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+    const reportHour = format(d, "HH"); // `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+    const startDay = format(new Date(dreamDay), "yyyy-MM-dd 00:00:00");
     // console.log('startDay', startDay);
-    const endDay = format(addDays(new Date(startDay), 1), 'yyyy-MM-dd 00:00:00');
+    const endDay = format(addDays(new Date(startDay), 1), "yyyy-MM-dd 00:00:00");
     // console.log('endDay', endDay);
     const [ results ] = await this.getPerf({ topic, startDay, endDay });
     if (results.length && results[0].report_count) {

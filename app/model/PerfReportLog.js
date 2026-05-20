@@ -1,10 +1,10 @@
-'use strict';
+"use strict";
 
 // todo 分库分表
 module.exports = app => {
   const { STRING, INTEGER, FLOAT } = app.Sequelize;
 
-  const PerfReportLog = app.model.define('PerfReportLog', {
+  const PerfReportLog = app.model.define("PerfReportLog", {
     perf_id: {
       type: INTEGER,
       primaryKey: true,
@@ -77,8 +77,8 @@ module.exports = app => {
       type: FLOAT,
     },
   }, {
-    tableName: 'perf_report_log',
-    createdAt: 'created_at',
+    tableName: "perf_report_log",
+    createdAt: "created_at",
     updatedAt: false,
   });
 

@@ -1,8 +1,8 @@
-'use strict';
+"use strict";
 
-const Subscription = require('egg').Subscription;
-const { format, addDays } = require('date-fns');
-const { deepCopyObject } = require('mazey');
+const Subscription = require("egg").Subscription;
+const { format, addDays } = require("date-fns");
+const { deepCopyObject } = require("mazey");
 // const { delete } = require('../entities/errCodeMessageMap');
 
 class GetTopics extends Subscription {
@@ -10,22 +10,22 @@ class GetTopics extends Subscription {
   static get schedule() {
     return {
       interval: 30 * 60 * 1000, // 30 分钟间隔
-      type: 'all', // 指定所有的 worker 都需要执行
+      type: "all", // 指定所有的 worker 都需要执行
     };
   }
 
   // subscribe 是真正定时任务执行时被运行的函数
   async subscribe() {
     const query = {
-      attributes: [ 'topic_id', 'topic', 'project_name' ],
+      attributes: [ "topic_id", "topic", "project_name" ],
       where: {
         switch: 1,
       },
       order: [
-        [ 'topic_id' ],
+        [ "topic_id" ],
       ],
     };
-    const n = format(new Date(), 'yyyy-MM-dd');
+    const n = format(new Date(), "yyyy-MM-dd");
     // 现存 topics
     const topicsData = await this.ctx.model.PerfTopics.findAll(query);
     const existTopics = topicsData.map(v => v.topic);

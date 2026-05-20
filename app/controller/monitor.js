@@ -1,9 +1,9 @@
-'use strict';
+"use strict";
 
-const { format, addDays } = require('date-fns');
-const { rsp } = require('../entities/response/index');
+const { format, addDays } = require("date-fns");
+const { rsp } = require("../entities/response/index");
 
-const Controller = require('egg').Controller;
+const Controller = require("egg").Controller;
 
 class Monitor extends Controller {
   // 获取统计数据
@@ -27,7 +27,7 @@ class Monitor extends Controller {
     const { start, duration, topic } = ctx.query;
     new Array(Number(duration)).fill(0).reduce(async (last, _, index) => {
       await last;
-      const tempD = format(addDays(new Date(start), index), 'yyyy-MM-dd 00:00:00');
+      const tempD = format(addDays(new Date(start), index), "yyyy-MM-dd 00:00:00");
       // console.log('tempD', tempD);
       return await ctx.service.perf.mGetPerf({ topic, dreamDay: tempD });
     }, undefined);

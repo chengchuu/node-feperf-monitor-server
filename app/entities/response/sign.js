@@ -1,6 +1,6 @@
-'use strict';
+"use strict";
 
-const { rsp } = require('.');
+const { rsp } = require(".");
 
 // 用 rsp 代替
 const signRsp = rsp;

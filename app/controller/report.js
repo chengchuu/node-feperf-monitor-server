@@ -1,10 +1,10 @@
-'use strict';
+"use strict";
 
-const { rsp } = require('../entities/response/index');
-const { err } = require('../entities/err');
-const Controller = require('egg').Controller;
-const { inRate } = require('mazey');
-const { format, addDays } = require('date-fns');
+const { rsp } = require("../entities/response/index");
+const { err } = require("../entities/err");
+const Controller = require("egg").Controller;
+const { inRate } = require("mazey");
+const { format, addDays } = require("date-fns");
 
 class ReportController extends Controller {
   async perf() {
@@ -37,13 +37,13 @@ class ReportController extends Controller {
     // console.log('cLoadPerf data', data)
     // ctx.body = rsp({ data });
     if (rateResult) {
-      const n = format(new Date(), 'yyyy-MM-dd');
+      const n = format(new Date(), "yyyy-MM-dd");
       const topicsCache = ctx.app.topicsCache || [];
       const thatTopic = topicsCache.find(v => v.topic === topic);
       if (thatTopic) thatTopic[n] += 1;
-      ctx.redirect('https://i.mazey.net/feperf/sdk/prd/report.js');
+      ctx.redirect("https://i.mazey.net/feperf/sdk/prd/report.js");
     } else {
-      ctx.append('content-type', 'application/javascript');
+      ctx.append("content-type", "application/javascript");
       // ctx.append('access-control-allow-origin', '*');
       ctx.body = `console.log(${JSON.stringify(data)});`;
     }

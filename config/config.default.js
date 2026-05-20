@@ -1,6 +1,6 @@
 /* eslint valid-jsdoc: "off" */
 
-'use strict';
+"use strict";
 
 /**
  * @param {Egg.EggAppInfo} appInfo app info
@@ -19,7 +19,7 @@ module.exports = appInfo => {
   };
 
   // use for cookie sign key, should change to your own and keep security
-  config.keys = appInfo.name + '_1599042231246_4485';
+  config.keys = appInfo.name + "_1599042231246_4485";
 
   // add your middleware config here
   config.middleware = [];

@@ -1,9 +1,9 @@
-'use strict';
+"use strict";
 
 module.exports = app => {
   const { STRING, INTEGER, FLOAT } = app.Sequelize;
 
-  const PerfTopics = app.model.define('PerfTopics', {
+  const PerfTopics = app.model.define("PerfTopics", {
     topic_id: {
       type: INTEGER,
       primaryKey: true,
@@ -33,11 +33,11 @@ module.exports = app => {
     },
     user_name: { // 系统所属用户名字，也常用作公司名称
       type: STRING(20),
-      defaultValue: '',
+      defaultValue: "",
     },
   }, {
-    tableName: 'perf_topics',
-    createdAt: 'created_at',
+    tableName: "perf_topics",
+    createdAt: "created_at",
     updatedAt: false,
   });
 

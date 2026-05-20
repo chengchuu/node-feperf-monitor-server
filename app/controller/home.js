@@ -1,18 +1,18 @@
-'use strict';
+"use strict";
 
-const Controller = require('egg').Controller;
-const { rsp } = require('../entities/response/index');
+const Controller = require("egg").Controller;
+const { rsp } = require("../entities/response/index");
 
 class HomeController extends Controller {
   async index() {
     const { ctx } = this;
-    ctx.body = rsp({ message: 'success' });
+    ctx.body = rsp({ message: "success" });
   }
   async testPost() {
     const { ctx } = this;
-    const rules = { id: 'string' };
+    const rules = { id: "string" };
     ctx.validate(rules, ctx.request.body);
-    ctx.body = 'hi';
+    ctx.body = "hi";
   }
 }
 

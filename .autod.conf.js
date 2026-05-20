@@ -1,28 +1,28 @@
-'use strict';
+"use strict";
 
 module.exports = {
   write: true,
-  prefix: '^',
-  plugin: 'autod-egg',
+  prefix: "^",
+  plugin: "autod-egg",
   test: [
-    'test',
-    'benchmark',
+    "test",
+    "benchmark",
   ],
   dep: [
-    'egg',
-    'egg-scripts',
+    "egg",
+    "egg-scripts",
   ],
   devdep: [
-    'egg-ci',
-    'egg-bin',
-    'egg-mock',
-    'autod',
-    'autod-egg',
-    'eslint',
-    'eslint-config-egg',
+    "egg-ci",
+    "egg-bin",
+    "egg-mock",
+    "autod",
+    "autod-egg",
+    "eslint",
+    "eslint-config-egg",
   ],
   exclude: [
-    './test/fixtures',
-    './dist',
+    "./test/fixtures",
+    "./dist",
   ],
 };

@@ -1,14 +1,14 @@
-'use strict';
+"use strict";
 
 const appConf = {
-  SecretId: '#rabbit',
-  SecretKey: '#rabbit',
+  SecretId: "#rabbit",
+  SecretKey: "#rabbit",
   // SMS
-  SmsSign: '知问兔科技',
-  SmsSdkAppid: '#rabbit',
-  SmsTemplateID: '#rabbit',
+  SmsSign: "知问兔科技",
+  SmsSdkAppid: "#rabbit",
+  SmsTemplateID: "#rabbit",
   // Captcha
-  CaptchaAppSecretKey: '#rabbit',
+  CaptchaAppSecretKey: "#rabbit",
   CaptchaAppId: 20221113,
 };
 
