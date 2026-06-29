@@ -1,9 +1,7 @@
 "use strict";
 
 const Subscription = require("egg").Subscription;
-const { format, addDays } = require("date-fns");
-const { deepCopyObject } = require("mazey");
-// const { delete } = require('../entities/errCodeMessageMap');
+const { format } = require("date-fns");
 
 class GetTopics extends Subscription {
   // 通过 schedule 属性来设置定时任务的执行间隔等配置
@@ -29,13 +27,9 @@ class GetTopics extends Subscription {
     // 现存 topics
     const topicsData = await this.ctx.model.PerfTopics.findAll(query);
     const existTopics = topicsData.map(v => v.topic);
-    // console.log('GetTopics existTopics', existTopics)
     // 缓存 topics
     const cacheTopicsData = this.ctx.app.topicsCache || [];
-    // console.log('GetTopics cacheTopics', cacheTopicsData)
     // 过滤后 topics
-    // const topics = deepCopyObject(topicsData);
-    // console.log('GetTopics topics', topics)
     const topics = [];
     existTopics.forEach(topic => {
       const usedKeys = [ topic, n ];
@@ -48,16 +42,8 @@ class GetTopics extends Subscription {
       }
       // 为 topic 补充今日 count
       if (!existTopic[n]) existTopic[n] = 0;
-      // todo 移除过去(昨日)日期的 count
-      // const keys = Object.keys(existTopic)
-      // keys.forEach(key => {
-      //   if (!usedKeys.includes(key)) {
-      //     delete existTopic[key]
-      //   }
-      // })
       topics.push(existTopic);
     });
-    // console.log('GetTopics topics after', topics)
     this.ctx.app.topicsCache = topics;
   }
 }

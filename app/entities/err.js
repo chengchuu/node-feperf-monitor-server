@@ -16,7 +16,6 @@ function err({ ctx, ret = 413, info = "err_server_error", message = "" } = {}) {
 
 // 解析错误码
 function parseErrInfo({ info, message }) {
-  // info = info.toLowerCase();
   if (errCodeMessageMap.has(info)) {
     message = errCodeMessageMap.get(info);
   }
