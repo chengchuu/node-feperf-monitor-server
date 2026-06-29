@@ -4,30 +4,55 @@ const https = require('https');
 
 module.exports = function requestLogger(options, app) {
   return async function requestLoggerMiddleware(ctx, next) {
-    await next();
+    try {
+      await next();
+    } finally {
 
-    const content = 'Feperf ' + ctx.method + ' ' + ctx.path;
-    const body = JSON.stringify({
-      log_type: 'request',
-      content: content,
-    });
+      const ignorePaths = [
+        '/feperf/ping',
+        '/server/log/add',
+      ];
 
-    const req = https.request({
-      hostname: 'i.mazey.net',
-      path: '/server/log/add',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(body),
-      },
-    });
+      if (ignorePaths.indexOf(ctx.path) !== -1) {
+        return;
+      }
 
-    req.on('error', function(e) {
-      app.logger.warn('[request_logger] failed to send log: ' + e.message);
-    });
+      const content = 'Feperf ' + ctx.method + ' ' + ctx.path;
 
-    req.write(body);
-    req.end();
-    app.logger.info('[request_logger] ' + content);
+      app.logger.info('[request_logger] ' + content);
+
+      const body = JSON.stringify({
+        log_type: 'request',
+        content,
+      });
+
+      const req = https.request({
+        hostname: 'i.mazey.net',
+        path: '/server/log/add',
+        method: 'POST',
+        timeout: 3000,
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(body),
+        },
+      });
+
+      req.on('response', function(res) {
+        res.resume();
+      });
+
+      req.on('timeout', function() {
+        req.destroy();
+      });
+
+      req.on('error', function(e) {
+        app.logger.warn(
+          '[request_logger] failed: ' + e.message
+        );
+      });
+
+      req.write(body);
+      req.end();
+    }
   };
 };
