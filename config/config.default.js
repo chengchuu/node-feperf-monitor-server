@@ -1,5 +1,3 @@
-/* eslint valid-jsdoc: "off" */
-
 "use strict";
 
 /**
@@ -22,7 +20,8 @@ module.exports = appInfo => {
   config.keys = appInfo.name + "_1599042231246_4485";
 
   // add your middleware config here
-  config.middleware = [];
+  config.middleware = [ "requestLogger" ];
+  config.requestLogger = {};
 
   // add your user config here
   const userConfig = {};
