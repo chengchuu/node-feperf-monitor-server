@@ -19,7 +19,7 @@ module.exports = function requestLogger(options, app) {
 
       const content = 'Feperf ' + ctx.method + ' ' + ctx.path;
 
-      app.logger.info('[request_logger] ' + content);
+      console.log('[request_logger] ' + content);
 
       const body = JSON.stringify({
         log_type: 'request',
@@ -46,7 +46,7 @@ module.exports = function requestLogger(options, app) {
       });
 
       req.on('error', function(e) {
-        app.logger.warn(
+        console.log(
           '[request_logger] failed: ' + e.message
         );
       });
