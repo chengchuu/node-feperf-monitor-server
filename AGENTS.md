@@ -1,318 +1,200 @@
 # AGENTS.md
 
-## Project Summary
+## Project Overview
 
-This repository is the Egg.js back-end for FEPerf, a front-end performance monitoring system. It accepts browser performance reports, stores raw samples in MySQL, exposes monitoring endpoints, and periodically aggregates raw data into summary statistics.
+This repository is the Egg.js back end for FEPerf, a front-end performance monitoring system. It receives browser performance reports, stores raw samples in MySQL, periodically aggregates them, and exposes monitoring APIs.
 
-The codebase is written in CommonJS and is intended to run on Node.js 10.x. Keep compatibility with Node 10 when editing code unless the runtime is intentionally being upgraded across the project.
+The application is a small CommonJS modular monolith. Egg auto-loads controllers, services, models, middleware, and schedules from `app/`; `app/router.js` is the HTTP route entry point.
 
-## Runtime Constraints
+## Runtime and Conventions
 
-- Target runtime: Node.js 10.x
-- Framework: Egg.js 2.x
-- ORM: `egg-sequelize` with MySQL
-- Cache / plugin: `egg-redis` is enabled, though most current flows use in-memory `app.topicsCache`
-- Language style: CommonJS, async/await, no TypeScript build
+- Target compatibility: Node.js 10.x. `package.json` declares `node >=10.0.0`, and AppVeyor uses Node 10.
+- Framework: Egg.js 2.x (`egg@^2.15.1`).
+- Database: MySQL through `egg-sequelize` and `mysql2`.
+- Cache/plugin state: `egg-redis` is enabled, but current application flows do not call Redis; topic counters live in `app.topicsCache` process memory.
+- Module style: CommonJS (`require` and `module.exports`) with async/await; there is no TypeScript or transpilation step.
+- Formatting: `.eslintrc` extends `eslint-config-egg`, prefers double quotes and semicolons, and reports most custom formatting and maintainability rules as warnings. Follow the checked-in ESLint config.
+- Compatibility: do not introduce optional chaining, nullish coalescing, top-level `await`, ESM-only dependencies, or APIs unavailable in Node 10 unless the project is intentionally upgraded.
 
-Notes:
+The Docker image currently uses Node 14, so container runtime and declared/CI compatibility do not match. Preserve Node 10 compatibility until that mismatch is deliberately resolved.
 
-- `package.json` declares `engines.node >=10.0.0`.
-- The checked-in `Dockerfile` currently uses `node:14`, which does not match the stated Node 10 target.
-- Avoid introducing syntax or dependencies that require newer Node features such as optional chaining, nullish coalescing, top-level `await`, ESM-only packages, or APIs added after Node 10.
+## Repository Map
 
-## Key Folders
+```text
+app/
+  controller/       HTTP request handlers
+  entities/         Response/error helpers and legacy utilities/config
+  middleware/       Error normalization and global request logging
+  model/            Sequelize models and table mappings
+  schedule/         Egg background subscriptions
+  service/          Performance/topic business and query logic
+  router.js         Public HTTP route table
+build/              Container/host startup scripts
+config/             Egg plugins and environment configuration
+database/           Empty Sequelize CLI configuration placeholder
+example/            Legacy SDK loader HTML example
+test/               Minimal Egg test scaffolding
+Dockerfile          Container build and startup definition
+DockerBuild.sh      Host-specific config copy and Docker redeployment script
+package.json        Runtime dependencies, scripts, and Node compatibility
+webpack.config.js   Legacy deploy bundling config; references missing deploy.js
+```
 
-### `app/`
+## Active Components
 
-Main Egg application code.
+### Routing and controllers
 
-- `app/router.js`
-  Registers HTTP routes and binds them to controllers.
-- `app/controller/`
-  Request handlers for reporting, monitoring, and ping endpoints.
-- `app/service/`
-  Business logic for topic management, querying raw performance data, and writing aggregated statistics.
-- `app/model/`
-  Sequelize models for the three MySQL tables:
-  - `PerfReportLog`
-  - `PerfStatistics`
-  - `PerfTopics`
-- `app/schedule/`
-  Background jobs that refresh topic cache and roll up statistics.
-- `app/middleware/`
-  Error normalization middleware.
-- `app/entities/`
-  Shared response helpers and error-code mapping.
+- `app/router.js` maps all public endpoints.
+- `app/controller/home.js` implements the ping response. Its `testPost()` method is not routed.
+- `app/controller/report.js` ingests raw reports, exposes the in-memory topic cache, and performs SDK sampling/redirect behavior.
+- `app/controller/monitor.js` reads aggregates and raw history, manages topics, counts reports, and triggers manual backfills. Its `getCache()` method is not routed.
 
-### `config/`
+### Service and persistence
 
-Egg configuration and plugin enablement.
+- `app/service/perf.js` owns topic creation/listing, raw SQL aggregation, aggregate persistence, and report counts.
+- `app/model/PerfReportLog.js` maps `perf_report_log`, the raw browser-report table.
+- `app/model/PerfStatistics.js` maps `perf_statistics`, the active/historical aggregate table.
+- `app/model/PerfTopics.js` maps `perf_topics`, the monitored-project registry.
 
-- `config/plugin.js`
-  Enables `redis`, `sequelize`, and `validate`. `egg-cors` is currently disabled/removed; if you want to keep an explicit marker, Egg.js 2.x also supports `cors: { enable: false, package: 'egg-cors' }`.
-- `config/config.default.js`
-  Base config: disables CSRF. There is currently no active `config.cors` block.
-- `config/config.local.js`
-  Local MySQL connection settings.
-- `config/_config.prod.js`
-  Production-like template, but the actual deployment script expects `config/config.prod.js` to be copied in externally.
+All three model modules call `.sync()` when Egg loads them. Model edits can therefore affect database schema during application startup; there is no migration workflow wired into the application.
 
-### `build/`
+### Middleware
 
-Container start scripts.
+- `requestLogger` is globally enabled by `config.middleware` in `config/config.default.js`.
+- After each request, it logs the method/path locally and sends `{ log_type, content }` to an external HTTPS logging endpoint.
+- It skips `/feperf/ping` and `/server/log/add`.
+- Remote logging is fire-and-forget with a 3-second request timeout; errors are logged and do not change the API response.
+- `errorHandler` normalizes thrown errors, but it is route-level rather than global. It is attached only to the ping and report/SDK routes in `app/router.js`; monitor routes do not use it.
 
-- `build/start.sh`
-  Runs `npm ci` and `npm run start-prod` inside the container.
-- `build/server-start.sh`
-  Restarts the app from a fixed path on a host machine.
+### Scheduled jobs
 
-### `test/`
+- `app/schedule/get_topics.js`: every 30 minutes, `type: "all"`; every worker reloads enabled topics and rebuilds its own `app.topicsCache` while retaining that worker's current-day counters.
+- `app/schedule/report_perf.js`: every 30 minutes, `type: "worker"`; one worker aggregates the current day for all enabled topics.
+- `app/schedule/robot.js`: cron `0 15 10 * * *`, `type: "worker"`; it currently reads enabled topics but performs no notification or other side effect. Its `axios` and `deepCopyObject` imports are currently unused.
 
-Egg test scaffolding. Current coverage is minimal, and `test/app/controller/home.test.js` appears outdated because it expects `GET /` to return `hi, egg`, while the router exposes `/feperf/ping`.
+## Configuration
 
-### `example/`
+- `config/plugin.js` explicitly disables `egg-cors` with `enable: false`; the package remains listed in `dependencies`. Redis, Sequelize, and validation plugins are enabled.
+- `config/config.default.js` disables CSRF, sets the cookie signing key, and enables `requestLogger`. There is no `config.cors` block.
+- `config/config.local.js` contains local API and MySQL settings.
+- `config/_config.prod.js` is a production-like template, not the filename Egg loads for production.
+- `DockerBuild.sh` expects to copy an external sibling file into `config/config.prod.js` before building. Production configuration is therefore not self-contained in this repository.
+- Do not copy credentials or sensitive config values into documentation, tests, or logs.
 
-Example HTML page for SDK-related usage.
+## HTTP API
 
-### `database/`
+| Method | Path | Handler | Data/side effect |
+| --- | --- | --- | --- |
+| GET | `/feperf/ping` | `home.index` | Returns the standard success envelope |
+| GET | `/feperf/report` | `report.perf` | Inserts `ctx.query` directly into `perf_report_log` |
+| GET | `/feperf/report/get-topics` | `report.cGetTopics` | Returns `app.topicsCache` |
+| GET | `/feperf/sdk/loader` | `report.cLoadPerf` | Samples by `rate`; increments an in-memory counter and redirects to the remote SDK when selected |
+| GET | `/feperf/monitor/perf/day` | `monitor.perfDay` | Reads active rows from `perf_statistics` |
+| GET | `/feperf/monitor/run/perf-month` | `monitor.runPerfMonth` | Starts a date-range aggregate backfill and responds immediately |
+| POST | `/feperf/monitor/add/topic` | `monitor.addTopic` | Inserts a topic if it does not already exist |
+| GET | `/feperf/monitor/get/topic` | `monitor.getTopic` | Lists enabled topics, optionally filtered by `userName` |
+| GET | `/feperf/monitor/get/count` | `monitor.getCount` | Counts rows in `perf_report_log` |
+| GET | `/feperf/monitor/get/history` | `monitor.getHistory` | Runs raw SQL aggregation and returns Sequelize's raw query result |
 
-Contains `config.json`; no migration workflow is wired into the app itself.
-
-## Entry Points
-
-### Development / local boot
-
-- `npm run dev`
-  Installs dependencies and runs `egg-bin dev`
-- `npm run start-local`
-  Starts Egg in local mode on port `7414`
-
-### Production-style boot
-
-- `npm run start-prod`
-  Starts Egg in prod mode on port `7414`
-- `build/start.sh`
-  Container command entrypoint
-- `Dockerfile`
-  Builds the runtime image and launches `build/start.sh`
-
-### HTTP entry point
-
-- `app/router.js`
-  This is the central map of public endpoints.
-
-### Background entry points
-
-- `app/schedule/get_topics.js`
-- `app/schedule/report_perf.js`
-- `app/schedule/robot.js`
-
-Egg loads these automatically as scheduled subscriptions.
-
-## HTTP Surface
-
-Defined in `app/router.js`:
-
-- `GET /feperf/ping`
-  Health check handled by `app/controller/home.js`
-- `GET /feperf/report`
-  Accepts raw SDK query parameters and writes a row into `perf_report_log`
-- `GET /feperf/report/get-topics`
-  Returns the in-memory topic cache
-- `GET /feperf/sdk/loader`
-  Sampling gate for SDK loading; may redirect to remote SDK URL
-- `GET /feperf/monitor/perf/day`
-  Returns aggregated daily statistics from `perf_statistics`
-- `GET /feperf/monitor/run/perf-month`
-  Manually triggers aggregation across a date range
-- `POST /feperf/monitor/add/topic`
-  Creates a new monitoring topic
-- `GET /feperf/monitor/get/topic`
-  Lists enabled topics
-- `GET /feperf/monitor/get/count`
-  Counts raw report rows
-- `GET /feperf/monitor/get/history`
-  Queries raw-report averages directly from `perf_report_log`
+Successful helper-generated responses generally use `{ ret, info, message, data }`. `getHistory` is an exception because it returns the raw Sequelize query result. Error helpers live in `app/entities/err.js` and `app/entities/response/index.js`.
 
 ## Data Model
 
-### `PerfReportLog`
+### `perf_report_log`
 
-Raw per-page-load reports from the SDK. Stored in table `perf_report_log`.
+Raw report rows keyed by `perf_id`. They include `topic`, environment/device attributes, navigation/performance timing values, payload sizes, `report_rate`, and `created_at`. Updates are not timestamped.
 
-Important fields:
+### `perf_statistics`
 
-- `topic`
-- environment/device metadata such as `os`, `network`, `device_type`
-- timing metrics such as `dns_time`, `tcp_time`, `response_time`, `domready_time`, `onload_time`, `white_time`, `render_time`
-- `report_rate`
-- `created_at`
+Aggregate rows keyed by `ss_id`, with topic, average timings, report count/day/hour, `created_at`, and `ss_status`. Before writing a new aggregate, the service marks existing rows for the same topic/day as `ss_status = 0`; readers select `ss_status = 1`.
 
-### `PerfStatistics`
+The service calculates and passes `render_time_avg`, but the current `PerfStatistics` model does not declare that field. Treat model/service alignment as a known risk when changing aggregation fields.
 
-Aggregated per-topic statistics stored in `perf_statistics`.
+### `perf_topics`
 
-Important fields:
+Topic registry keyed by `topic_id`, with project metadata, ownership/contact fields, `user_name`, and `switch`. Only rows with `switch = 1` are returned by normal topic queries.
 
-- `topic`
-- average timing fields ending in `_avg`
-- `report_count`
-- `report_day`
-- `report_hour`
-- `ss_status`
+## Data Flows
 
-`ss_status = 1` marks the latest active aggregate for a topic/day; older rows are marked `0`.
+### Raw ingestion
 
-### `PerfTopics`
+`Browser SDK -> GET /feperf/report -> ReportController.perf -> PerfReportLog.create(ctx.query) -> MySQL`
 
-Topic registry stored in `perf_topics`.
+The endpoint has no input validation and passes query parameters directly to Sequelize. Keep field validation and public-input risk in mind when changing it.
 
-Important fields:
+### SDK sampling
 
-- `topic`
-- `project_name`
-- `project_description`
-- `owner`
-- `department`
-- `contact`
-- `switch`
-- `user_name`
+`Browser -> GET /feperf/sdk/loader -> inRate(rate) -> redirect to remote SDK or return JavaScript`
 
-## Data Flow
+For selected requests, the controller increments today's counter in the matching `app.topicsCache` entry before redirecting. The counter is per process, is not persisted, and can reset on restart or diverge across workers.
 
-### 1. Raw report ingestion
+### Topic cache refresh
 
-Path:
+`get_topics schedule -> PerfTopics.findAll(switch = 1) -> merge current-day worker counters -> app.topicsCache`
 
-`SDK/browser -> GET /feperf/report -> ReportController.perf -> PerfReportLog.create() -> MySQL`
+Because this schedule uses `type: "all"`, each worker maintains its own independent cache.
 
-Details:
+### Aggregation
 
-- `app/controller/report.js#perf` writes `ctx.query` directly into `ctx.model.PerfReportLog`.
-- There is no request validation in this path.
-- The response is normalized through `rsp()`.
+`report_perf schedule or manual backfill -> PerfService.mGetPerf -> raw SQL over perf_report_log -> savePerfStatistics -> perf_statistics`
 
-### 2. SDK loader / sampling flow
+The SQL filters invalid/incomplete timings and only accepts `onload_time` values between 0 and 30000 ms. `getPerf()` interpolates `topic`, `startDay`, and `endDay` directly into SQL; do not expose new untrusted inputs to this path without parameterizing the query.
 
-Path:
+`report_perf` and `runPerfMonth` create async `reduce()` chains without awaiting the final promise. Their callers can complete before aggregation finishes, and failures may not propagate through the original request/job lifecycle.
 
-`Browser -> GET /feperf/sdk/loader -> ReportController.cLoadPerf -> inRate(rate)`
+### Request logging
 
-If sampled in:
+`Any non-ignored request -> requestLogger finally block -> local console + external HTTPS log request`
 
-- increments today’s count in `app.topicsCache`
-- redirects the browser to `https://i.mazey.net/feperf/sdk/prd/report.js`
+Only method and path are included; query strings and request bodies are not sent by this middleware.
 
-If sampled out:
+## Development and Operations
 
-- returns a small JavaScript payload that logs sampling info
+- `npm run dev`: installs dependencies from the npm registry, then starts Egg development mode.
+- `npm run start-local`: starts a daemonized local Egg process on port `7414`.
+- `npm run start-prod`: starts a daemonized production Egg process on port `7414`.
+- `npm run test-local`: runs Egg tests.
+- `npm test`: runs `npm run lint -- --fix`, then `npm run test-local`; this can modify linted files.
+- `npm run lint`: lints the repository.
+- `npm run lint:fix`: fixes JavaScript under the shell-expanded `./test/*` target only.
+- `npm run cov`: runs coverage.
 
-### 3. Topic cache refresh
+Container flow:
 
-Path:
+`Dockerfile -> node:14 -> copy repository -> build/start.sh -> npm ci -> npm run start-prod`
 
-`Schedule get_topics -> PerfTopics.findAll() -> rebuild app.topicsCache`
+The container exposes `7414`. `DockerBuild.sh` maps host port `7415` to container port `7414`, but it also stops and removes all Docker containers on the host; do not run it casually or in shared environments.
 
-Details:
+## Tests and Legacy Files
 
-- Runs every 30 minutes with `type: 'all'`
-- Reads enabled topics from MySQL
-- Rebuilds `ctx.app.topicsCache`
-- Preserves today’s per-topic in-memory sample count when possible
+- Test coverage is minimal. `test/app/controller/home.test.js` still expects `GET /` to return `hi, egg`, but no `/` route exists; the active health endpoint is `/feperf/ping`.
+- `example/test.html` points to a legacy local URL (`127.0.0.1:7002/sdk/loader`) that does not match the current `/feperf/sdk/loader` route or port `7414`.
+- `webpack.config.js` references `deploy.js`, which is absent, and is not connected to a package script.
+- `database/config.json` is empty; although `sequelize-cli` is installed, no migrations or CLI workflow are checked in.
+- `app/entities/tencentConf.js`, `utils.js`, and `response/sign.js` are not referenced by active application code.
 
-This cache is used by:
+## Safe Change Checklist
 
-- `GET /feperf/report/get-topics`
-- `GET /feperf/sdk/loader`
+- Preserve Node 10 syntax and runtime compatibility.
+- Use CommonJS and follow `.eslintrc`, including double quotes in JavaScript.
+- Trace route changes through controller, service, model/raw SQL, middleware, and tests.
+- Keep the response envelope stable unless an API contract change is intentional.
+- Validate and parameterize public inputs before extending report ingestion or raw SQL paths.
+- Treat model edits as startup schema changes because models call `.sync()`.
+- Account for per-worker in-memory state when changing topic caching or counters.
+- Account for global outbound request logging when adding sensitive paths.
+- Do not run `DockerBuild.sh` without explicit intent to replace host Docker workloads and provide external production config.
+- Update this file when routes, schedules, middleware, runtime versions, persistence, or deployment behavior changes.
 
-### 4. Statistics aggregation
-
-Path:
-
-`Schedule report_perf -> service.perf.getTopic() -> service.perf.mGetPerf() -> service.perf.getPerf() -> service.perf.savePerfStatistics()`
-
-Details:
-
-- Runs every 30 minutes
-- Iterates through active topics
-- Computes aggregate averages from raw rows in `perf_report_log`
-- Stores summarized rows in `perf_statistics`
-- Marks older rows for the same topic/day as inactive by setting `ss_status = 0`
-
-### 5. Monitoring reads
-
-Two read paths exist:
-
-- Aggregated view:
-  `GET /feperf/monitor/perf/day -> queryPerfStatistics() -> perf_statistics`
-- Raw-history computation:
-  `GET /feperf/monitor/get/history -> getPerf() -> raw SQL over perf_report_log`
-
-### 6. Manual backfill
-
-Path:
-
-`GET /feperf/monitor/run/perf-month -> Monitor.runPerfMonth -> repeated mGetPerf() calls`
-
-This manually triggers daily aggregation for a date range, one day at a time.
-
-## Important Implementation Notes
-
-### Models sync on boot
-
-Each Sequelize model calls `.sync()` during module initialization. That means application startup can create or alter tables depending on Sequelize behavior and database permissions. Be careful when changing model definitions.
-
-### Raw SQL is built with string interpolation
-
-`app/service/perf.js#getPerf` interpolates `topic`, `startDay`, and `endDay` directly into SQL text. Treat this as a high-risk area when modifying request inputs or opening new public paths.
-
-### Topic cache is process memory
-
-`app.topicsCache` is not Redis-backed. It is rebuilt by a schedule and lives in memory, so behavior can differ across workers or restarts.
-
-### Some schedules use async `reduce` without awaiting completion
-
-Several controller and schedule flows construct async reductions but do not await the final promise chain before returning. Keep that behavior in mind when debugging timing issues.
-
-### Deployment assumptions are external
-
-`DockerBuild.sh` expects a sibling path to provide `config/config.prod.js`. Production config is not fully self-contained inside this repository.
-
-## Files To Read First
-
-When making changes, start here:
+## Recommended Reading Order
 
 1. `package.json`
-2. `app/router.js`
-3. `app/controller/report.js`
-4. `app/controller/monitor.js`
-5. `app/service/perf.js`
-6. `app/model/*.js`
-7. `app/schedule/*.js`
-8. `config/config.default.js`
-9. `config/config.local.js`
-
-## Safe Change Guidelines
-
-- Preserve Node 10 compatibility.
-- Prefer CommonJS `require` / `module.exports`.
-- Avoid modern syntax that would need transpilation.
-- Keep API response shape consistent with helpers in `app/entities/response/index.js` and `app/entities/err.js`.
-- Check whether a change affects both request-time flows and scheduled aggregation flows.
-- If you change model fields, inspect the corresponding controller, service, raw SQL, and schedule logic together.
-- If you change routing, update the stale tests.
-
-## Useful Commands
-
-- `npm run dev`
-- `npm run start-local`
-- `npm run test-local`
-- `npm run lint`
-
-## Suggested Future Cleanup
-
-- Align actual runtime with Node 10 guidance or officially upgrade the project.
-- Replace model `.sync()` boot behavior with migrations.
-- Parameterize raw SQL in `app/service/perf.js`.
-- Add request validation for reporting and topic-management endpoints.
-- Refresh test coverage so it matches current routes.
+2. `config/plugin.js` and `config/config.default.js`
+3. `app/router.js`
+4. `app/middleware/request_logger.js` and `app/middleware/error_handler.js`
+5. `app/controller/report.js` and `app/controller/monitor.js`
+6. `app/service/perf.js`
+7. `app/model/*.js`
+8. `app/schedule/*.js`
+9. `Dockerfile`, `build/start.sh`, and `DockerBuild.sh`
+10. `test/app/controller/home.test.js`
