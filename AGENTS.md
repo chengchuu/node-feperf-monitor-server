@@ -16,28 +16,20 @@ The application is a small CommonJS modular monolith. Egg auto-loads controllers
 - Formatting: `.eslintrc` extends `eslint-config-egg`, prefers double quotes and semicolons, and reports most custom formatting and maintainability rules as warnings. Follow the checked-in ESLint config.
 - Compatibility: do not introduce optional chaining, nullish coalescing, top-level `await`, ESM-only dependencies, or APIs unavailable in Node 10 unless the project is intentionally upgraded.
 
-The Docker image currently uses Node 14, so container runtime and declared/CI compatibility do not match. Preserve Node 10 compatibility until that mismatch is deliberately resolved.
-
 ## Repository Map
 
 ```text
 app/
   controller/       HTTP request handlers
-  entities/         Response/error helpers and legacy utilities/config
+  entities/         Response and error helpers
   middleware/       Error normalization and global request logging
   model/            Sequelize models and table mappings
   schedule/         Egg background subscriptions
   service/          Performance/topic business and query logic
   router.js         Public HTTP route table
-build/              Container/host startup scripts
 config/             Egg plugins and environment configuration
-database/           Empty Sequelize CLI configuration placeholder
-example/            Legacy SDK loader HTML example
 test/               Minimal Egg test scaffolding
-Dockerfile          Container build and startup definition
-DockerBuild.sh      Host-specific config copy and Docker redeployment script
 package.json        Runtime dependencies, scripts, and Node compatibility
-webpack.config.js   Legacy deploy bundling config; references missing deploy.js
 ```
 
 ## Active Components
@@ -78,7 +70,7 @@ All three model modules call `.sync()` when Egg loads them. Model edits can ther
 - `config/config.default.js` disables CSRF, sets the cookie signing key, and enables `requestLogger`. There is no `config.cors` block.
 - `config/config.local.js` contains local API and MySQL settings.
 - `config/_config.prod.js` is a production-like template, not the filename Egg loads for production.
-- `DockerBuild.sh` expects to copy an external sibling file into `config/config.prod.js` before building. Production configuration is therefore not self-contained in this repository.
+- No checked-in `config/config.prod.js` exists, so production database/API configuration must be supplied separately.
 - Do not copy credentials or sensitive config values into documentation, tests, or logs.
 
 ## HTTP API
@@ -150,7 +142,7 @@ Only method and path are included; query strings and request bodies are not sent
 
 ## Development and Operations
 
-- `npm run dev`: installs dependencies from the npm registry, then starts Egg development mode.
+- `npm run dev`: installs dependencies using the user's npm configuration, then starts Egg development mode.
 - `npm run start-local`: starts a daemonized local Egg process on port `7414`.
 - `npm run start-prod`: starts a daemonized production Egg process on port `7414`.
 - `npm run test-local`: runs Egg tests.
@@ -159,19 +151,9 @@ Only method and path are included; query strings and request bodies are not sent
 - `npm run lint:fix`: fixes JavaScript under the shell-expanded `./test/*` target only.
 - `npm run cov`: runs coverage.
 
-Container flow:
-
-`Dockerfile -> node:14 -> copy repository -> build/start.sh -> npm ci -> npm run start-prod`
-
-The container exposes `7414`. `DockerBuild.sh` maps host port `7415` to container port `7414`, but it also stops and removes all Docker containers on the host; do not run it casually or in shared environments.
-
 ## Tests and Legacy Files
 
 - Test coverage is minimal. `test/app/controller/home.test.js` still expects `GET /` to return `hi, egg`, but no `/` route exists; the active health endpoint is `/feperf/ping`.
-- `example/test.html` points to a legacy local URL (`127.0.0.1:7002/sdk/loader`) that does not match the current `/feperf/sdk/loader` route or port `7414`.
-- `webpack.config.js` references `deploy.js`, which is absent, and is not connected to a package script.
-- `database/config.json` is empty; although `sequelize-cli` is installed, no migrations or CLI workflow are checked in.
-- `app/entities/tencentConf.js`, `utils.js`, and `response/sign.js` are not referenced by active application code.
 
 ## Safe Change Checklist
 
@@ -183,8 +165,7 @@ The container exposes `7414`. `DockerBuild.sh` maps host port `7415` to containe
 - Treat model edits as startup schema changes because models call `.sync()`.
 - Account for per-worker in-memory state when changing topic caching or counters.
 - Account for global outbound request logging when adding sensitive paths.
-- Do not run `DockerBuild.sh` without explicit intent to replace host Docker workloads and provide external production config.
-- Update this file when routes, schedules, middleware, runtime versions, persistence, or deployment behavior changes.
+- Update this file when routes, schedules, middleware, runtime versions, persistence, or operational behavior changes.
 
 ## Recommended Reading Order
 
@@ -196,5 +177,4 @@ The container exposes `7414`. `DockerBuild.sh` maps host port `7415` to containe
 6. `app/service/perf.js`
 7. `app/model/*.js`
 8. `app/schedule/*.js`
-9. `Dockerfile`, `build/start.sh`, and `DockerBuild.sh`
-10. `test/app/controller/home.test.js`
+9. `test/app/controller/home.test.js`
