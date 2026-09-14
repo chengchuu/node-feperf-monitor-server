@@ -30,11 +30,8 @@
     "egg-mock": "^3.21.0",
     "eslint": "^5.13.0",
     "eslint-config-egg": "^7.1.0",
-    "sequelize-cli": "^6.2.0",
     "scp2": "^0.5.0",
-    "ssh2": "^0.4.10",
-    "webpack": "^4.44.2",
-    "webpack-cli": "^3.3.12"
+    "ssh2": "^0.4.10"
   },
   "engines": {
     "node": ">=10.0.0"
@@ -47,8 +44,7 @@
     "stop-prod": "egg-scripts stop --env=prod --title=egg-server-prod-feperf-server",
     "restart-local": "npm run stop-local && npm run start-local",
     "restart-prod": "npm run stop-prod && npm run start-prod",
-    "restart": "bash ./DockerBuild.sh",
-    "dev": "npm i --registry=https://registry.npmjs.org && egg-bin dev",
+    "dev": "npm i && egg-bin dev",
     "debug": "egg-bin debug",
     "test": "npm run lint -- --fix && npm run test-local",
     "test-local": "egg-bin test",

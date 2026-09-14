@@ -5,6 +5,7 @@ node_modules/
 yarn.lock
 coverage/
 .idea/
+.github/
 run/
 .DS_Store
 *.sw*
